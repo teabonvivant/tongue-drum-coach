@@ -1,0 +1,320 @@
+<title>空靈鼓跟敲助手</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Tokens are rewritten at runtime from the chosen background (see applyTheme); these are the default 夜墨 values. */
+:root{
+  --bg:#0F1115; --panel:#16191F; --panel2:#1C2027; --line:#262A32; --line2:#343944;
+  --fg:#EEF0F4; --mute:#9CA2AE; --gold:#E9B949; --goldt:#F0C75E; --ink:#17130A; --bad:#FF6B6B;
+  --glow:rgba(233,185,73,.10); --shadow:rgba(0,0,0,.45);
+  --sans:'Noto Sans TC',system-ui,-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;
+  --serif:'Noto Serif TC','Songti TC','PMingLiU',serif; --num:'Outfit','Noto Sans TC',system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.55;padding-inline:24px;padding-block:0 48px;min-height:100%;transition:background-color .3s}
+button,select,input,textarea{font-family:inherit;font-size:14px;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.app{max-width:1400px;margin:0 auto;overflow-x:clip}
+
+/* ---------- header ---------- */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;padding-block:18px 14px}
+.brand{display:flex;align-items:center;gap:10px;font:700 20px var(--serif);letter-spacing:.08em;white-space:nowrap}
+.brand svg{flex:none}
+.songbox{display:flex;align-items:center;gap:8px;min-width:0}
+select{height:40px;padding:0 34px 0 12px;border-radius:12px;border:1px solid var(--line2);background:var(--panel2);max-width:100%;appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-gradient(135deg,var(--mute) 50%,transparent 50%);background-position:calc(100% - 17px) 17px,calc(100% - 12px) 17px;background-size:5px 5px;background-repeat:no-repeat}
+#songSel{min-width:0;width:240px;font-weight:500}
+.btn{min-height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--line2);background:var(--panel2);font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--gold)}
+.btn.gold{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:700}
+.btn.sm{min-height:34px;padding:0 12px;font-size:13px;border-radius:10px}
+.btn.ghost{background:transparent}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:var(--panel2);max-width:100%;flex-wrap:wrap}
+.seg button{min-height:38px;min-width:44px;padding:0 14px;border:0;background:transparent;color:var(--mute);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--gold);color:var(--ink);font-weight:700}
+.seg.sm button{min-height:34px;padding:0 11px;font-size:13px}
+.dock{display:flex;flex-direction:column;gap:4px;position:sticky;top:16px;align-self:start;padding:8px 6px;background:var(--panel);border:1px solid var(--line);border-radius:20px}
+.dock button{display:flex;flex-direction:column;align-items:center;gap:4px;width:56px;min-height:58px;padding:9px 2px 7px;border-radius:14px;border:0;background:transparent;color:var(--mute);font-size:11.5px;line-height:1.2}
+.dock button svg{width:20px;height:20px;flex:none}
+.dock button:hover{color:var(--fg);background:var(--panel2)}
+.dock button[aria-pressed="true"]{color:var(--fg);background:var(--panel2)}
+.dock button[aria-pressed="true"] svg{color:var(--goldt)}
+.dock .sep{width:28px;height:1px;background:var(--line2);margin:4px auto}
+
+/* ---------- stage ---------- */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 68px;gap:24px;padding-top:4px;align-items:start}
+.stage.has-side{grid-template-columns:minmax(0,1fr) 380px 68px}
+.side.none{display:none}
+.left{min-width:0;display:flex;flex-direction:column;gap:14px;align-items:center;width:100%;max-width:880px;justify-self:center}
+.dbox{position:relative;width:min(100%,660px);max-width:max(300px,calc(100vh - 200px));aspect-ratio:1/1;border-radius:50%}
+.with-score .dbox{max-width:max(300px,calc(100vh - 330px))}
+.dbox:before{content:"";position:absolute;inset:-9%;border-radius:50%;background:radial-gradient(circle,var(--glow) 0%,transparent 64%);pointer-events:none}
+.dbox.noglow:before{display:none}
+.dbox:after{content:"";position:absolute;left:8%;right:8%;bottom:-4%;height:9%;border-radius:50%;background:radial-gradient(closest-side,var(--shadow),transparent);pointer-events:none;z-index:-1}
+#drum{position:relative;width:100%;height:100%;display:block;touch-action:manipulation;user-select:none;-webkit-user-select:none;overflow:visible}
+#drum .tg{cursor:pointer}
+
+/* transport */
+.transport{width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px 14px}
+.play{min-width:112px;min-height:46px;border-radius:14px;border:0;background:var(--gold);color:var(--ink);font-weight:700;font-size:16px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.play:hover{filter:brightness(1.06)}
+.ibtn{width:46px;height:46px;border-radius:14px;border:1px solid var(--line2);background:var(--panel2);display:grid;place-items:center}
+.ibtn:hover{border-color:var(--gold)}
+.pmid{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:2px}
+#progTxt{white-space:nowrap}
+.prow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--mute);min-height:20px}
+.prow #msg{text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow #msg b{color:var(--goldt)}
+.tgl{min-height:34px;padding:0 12px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);color:var(--mute);font-size:13px}
+.tgl[aria-pressed="true"]{border-color:var(--gold);color:var(--goldt)}
+.bpmchip{min-height:34px;padding:0 12px;border-radius:10px;border:1px solid var(--line2);background:transparent;color:var(--mute);font:500 13px var(--num);font-variant-numeric:tabular-nums}
+.bpmchip b{color:var(--fg);font-size:15px;font-weight:600}
+.looprow{display:flex;align-items:center;gap:8px;color:var(--mute);font-size:13px;align-self:flex-start;padding-left:4px}
+input[type=range]{width:100%;accent-color:var(--gold);height:22px;margin:0}
+input[type=number]{width:64px;height:34px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);padding:0 8px}
+
+/* ---------- panels ---------- */
+.side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;min-width:0;width:100%}
+.ph{display:flex;align-items:center;gap:10px;padding:14px 14px 0 20px}
+.ph h2{margin:0;font:700 15px var(--serif);letter-spacing:.1em;flex:1;display:flex;align-items:center;gap:10px}
+.ph h2 small{font:500 12.5px var(--num);color:var(--mute);letter-spacing:.04em}
+.x{width:34px;height:34px;border-radius:10px;border:0;background:transparent;color:var(--mute);display:grid;place-items:center;flex:none}
+.x:hover{background:var(--panel2);color:var(--fg)}
+.pb{padding:14px 20px 20px;display:flex;flex-direction:column;gap:16px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mute{color:var(--mute);font-size:13px}
+.lab{font-size:12px;letter-spacing:.14em;color:var(--mute);margin:0 0 -6px}
+.hr{height:1px;background:var(--line);margin:2px 0}
+.crow{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px}
+.crow>span:first-child,.crow>label:first-child{flex:none}
+.crow input[type=range]{max-width:55%}
+.chk{display:flex;align-items:center;gap:10px;min-height:34px;cursor:pointer}
+.chk input{width:19px;height:19px;accent-color:var(--gold);flex:none}
+.note{font-size:12.5px;color:var(--mute);line-height:1.6}
+.note a{color:var(--goldt)}
+
+/* tempo */
+.bpm{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.bigbpm{text-align:center;flex:1;min-width:0}
+.bigbpm .n{font:600 60px/1 var(--num);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.bigbpm .t{color:var(--goldt);font-size:13px;margin-top:4px}
+.rbtn{width:54px;height:54px;border-radius:50%;border:1px solid var(--line2);background:var(--panel2);font:400 26px var(--num);display:grid;place-items:center;touch-action:manipulation;user-select:none}
+.rbtn:hover{border-color:var(--gold)}
+.pres{display:flex;gap:6px;flex-wrap:wrap}
+.pres button{min-height:34px;padding:0 11px;border-radius:9px;border:1px solid var(--line2);background:transparent;font:500 13px var(--num);font-variant-numeric:tabular-nums;color:var(--mute)}
+.pres button.on{border-color:var(--gold);color:var(--goldt)}
+.lights{display:flex;gap:10px;align-items:center;justify-content:center;min-height:20px}
+.lt{width:12px;height:12px;border-radius:50%;background:var(--line2)}
+.lt.ac{width:16px;height:16px}
+.lt.on{background:var(--gold)}
+
+/* hint colours */
+.sw{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.swb{width:34px;height:34px;border-radius:50%;border:2px solid var(--panel);padding:0;background:var(--c);box-shadow:0 0 0 1px var(--line2)}
+.swb.on{box-shadow:0 0 0 2px var(--fg)}
+input[type=color]{-webkit-appearance:none;appearance:none;width:34px;height:34px;padding:0;border:2px solid var(--line2);border-radius:50%;background:none;cursor:pointer;flex:none}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}
+input[type=color]::-moz-color-swatch{border:0;border-radius:50%}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:12px 8px}
+.cg{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mute);font-size:12px;text-align:center}
+
+/* look gallery */
+.cat{font-size:12px;letter-spacing:.14em;color:var(--mute);margin:6px 0 -4px}
+.gal{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tp{border:1.5px solid var(--line);border-radius:14px;background:var(--panel2);padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--fg);min-width:0}
+.tp svg{width:100%;max-width:86px;aspect-ratio:1/1;height:auto;display:block}
+.tp span{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tp:hover{border-color:var(--line2)}
+.tp.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.skc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 8px}
+
+/* background */
+.bgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px}
+.bgt{height:64px;border-radius:14px;border:1.5px solid var(--line2);background:var(--c);display:flex;align-items:flex-end;padding:6px 9px;font-size:12px;color:var(--k);text-align:left}
+.bgt.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+
+/* sound */
+.tones{display:flex;flex-direction:column;gap:8px}
+.tone{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;border:1.5px solid var(--line);background:var(--panel2);text-align:left;width:100%}
+.tone.on{border-color:var(--gold)}
+.tone .tt{flex:1;min-width:0}
+.tone b{display:block;font-weight:600;font-size:14px}
+.tone small{display:block;color:var(--mute);font-size:12px;line-height:1.45}
+.tone .pv{width:36px;height:36px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;flex:none;background:var(--panel)}
+.tone.dis{opacity:.55}
+.samps{display:flex;flex-wrap:wrap;gap:6px}
+.samps button{min-height:30px;padding:0 9px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);font:500 12.5px var(--num)}
+.file{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.file input{max-width:100%;font-size:13px;color:var(--mute)}
+input[type=file]::file-selector-button{min-height:36px;padding:0 14px;margin-right:10px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);color:var(--fg);font:500 13px var(--sans);cursor:pointer}
+input[type=file]::file-selector-button:hover{border-color:var(--gold)}
+
+.ibtn.sm{width:40px;height:40px;border-radius:12px;color:var(--mute)}
+.ibtn.sm:hover{color:var(--fg)}
+.tgl.mic{display:inline-flex;align-items:center;gap:6px}
+.tgl.mic[aria-pressed="true"]{background:color-mix(in srgb,var(--gold) 16%,transparent)}
+.tgl.mic[aria-pressed="true"] svg{animation:micp 1.6s ease-in-out infinite}
+@keyframes micp{50%{opacity:.35}}
+/* fixed finishes & patterns */
+.csws{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 8px}
+.csw{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;padding:4px 0;color:var(--mute);font-size:12px;min-width:0}
+.csw i{display:block;width:46px;height:46px;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 3px var(--r),0 0 0 1px var(--line2)}
+.csw span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.csw.on{color:var(--fg)}
+.csw.on i{box-shadow:inset 0 0 0 3px var(--r),0 0 0 2px var(--bg),0 0 0 4px var(--gold)}
+.csw:hover i{transform:scale(1.04)}
+/* challenge panel */
+.gbox{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.gstat{background:var(--panel2);border-radius:14px;padding:10px 6px;text-align:center;display:flex;flex-direction:column;gap:2px}
+.gstat b{font:600 22px var(--num);font-variant-numeric:tabular-nums}
+.gstat span{font-size:11.5px;color:var(--mute)}
+.gmsg{min-height:22px;font-size:13.5px;color:var(--fg)}
+.gmsg b{color:var(--goldt)}
+.rsongs{display:flex;flex-direction:column;gap:2px}
+.rs{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:13.5px}
+.rs:last-child{border-bottom:0}
+.rs .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rs .st{color:var(--goldt);letter-spacing:1px;font-size:14px}
+.rs .pc{color:var(--mute);font:500 12.5px var(--num);min-width:62px;text-align:right}
+
+/* ---------- score ---------- */
+.scorep{align-self:stretch}
+.score{--fs:22px;display:flex;flex-wrap:wrap;row-gap:10px;max-height:calc(var(--fs)*11.5);overflow:auto;padding:4px 2px 8px;font-family:var(--num);position:relative;scroll-behavior:smooth}
+.score.s{--fs:18px}.score.l{--fs:30px}
+.bar{position:relative;display:flex;align-items:flex-start;padding:18px 8px 4px;border-right:1.5px solid var(--line2);border-radius:6px}
+.bar:last-child{border-right-width:3px}
+.bar .bn{position:absolute;top:1px;left:6px;font-size:10.5px;color:var(--mute);font-weight:500}
+.bar.cur{background:var(--panel2)}
+.bar.past{opacity:.5}
+.bt{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 3px}
+.bt .ns{display:flex;align-items:flex-start;min-height:calc(var(--fs)*1.9)}
+.bt .ct{font-size:10.5px;color:var(--mute);opacity:.7;line-height:1;min-width:14px;text-align:center;border-radius:4px;padding:2px 3px}
+.bt.now .ct{color:var(--ink);background:var(--gold);opacity:1;font-weight:700}
+.u1,.u2{display:inline-flex;align-items:flex-start;padding-bottom:3px;border-bottom:1.6px solid currentColor}
+.n{position:relative;display:inline-flex;flex-direction:column;align-items:center;padding:4px 3px 5px;border-radius:7px;cursor:pointer;min-width:calc(var(--fs)*.78);font-size:var(--fs);line-height:1;font-weight:500}
+.n:hover{background:var(--panel2)}
+.n .dg{position:relative;display:block;color:var(--dc,var(--fg))}
+.n .dg+.dg{margin-top:3px}
+.n .hi,.n .lo{position:absolute;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
+.n .hi{top:-5px}
+.n .lo{bottom:-6px}
+.n.dotd{padding-right:10px}
+.n .dt{position:absolute;right:2px;top:calc(var(--fs)*.42);width:4px;height:4px;border-radius:50%;background:var(--fg)}
+.n.dash .dg{width:calc(var(--fs)*.6);height:2px;margin:calc(var(--fs)*.45) 0;background:var(--mute)}
+.n.tie:before{content:"";position:absolute;left:-60%;right:40%;top:-3px;height:7px;border:1.5px solid var(--mute);border-bottom:0;border-radius:50% 50% 0 0}
+.n.rest .dg{color:var(--mute)}
+.n.on{background:var(--hc);box-shadow:0 0 0 1px var(--hc)}
+.n.on .dg{color:var(--hk)}
+.n.on .dt{background:var(--hk)}
+.n.on.dash .dg{background:var(--hk)}
+.n.sub .dg{text-decoration:underline dotted;text-underline-offset:calc(var(--fs)*.25)}
+.scorehead{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+.key{font:600 15px var(--serif);letter-spacing:.06em}
+.rep{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;color:var(--mute);font-size:12.5px}
+.rep b{color:var(--fg);font-weight:500}
+.rep select{height:32px}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;z-index:40;display:flex;justify-content:center;align-items:center;background:rgba(6,7,10,.66);padding:16px}
+.modal .box{background:var(--panel);border:1px solid var(--line2);border-radius:20px;width:min(580px,100%);max-height:100%;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.modal .pb{overflow:auto}
+textarea{width:100%;min-height:150px;border-radius:12px;border:1px solid var(--line2);background:var(--panel2);padding:10px 12px;font:14px/1.7 var(--num),var(--sans);resize:vertical}
+.err{color:var(--bad);font-size:13px;min-height:1em}
+.hint-x{font-size:12.5px;color:var(--mute);line-height:1.7}
+.hint-x code{font-family:var(--num);background:var(--panel2);padding:1px 5px;border-radius:5px;color:var(--fg)}
+
+/* ---------- mobile ---------- */
+@media (max-width:959px){
+  body{padding-inline:16px;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  .top{gap:10px 12px;padding-block:12px 8px}
+  .brand{font-size:17px;order:1}
+  #drumSeg{order:2;margin-left:auto}
+  #btnFull{order:3}
+  .songbox{order:4;flex-basis:100%}
+  .dbox:before{inset:-4%}
+  #songSel{width:auto;flex:1}
+  .songbox{flex:1 1 220px}
+  .stage,.stage.has-side{grid-template-columns:minmax(0,1fr);gap:16px}
+  .dbox,.with-score .dbox{max-width:max(280px,calc(100vh - 300px))}
+  .dock{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:30;flex-direction:row;background:var(--panel);border:0;border-top:1px solid var(--line);border-radius:0;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around;gap:0;overflow-x:auto}
+  .dock button{width:auto;min-width:0;flex:1 1 0;min-height:52px;padding:5px 1px;font-size:10.5px;gap:3px;white-space:nowrap}
+  .dock .sep{display:none}
+  .side{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:25;max-height:62vh;overflow:auto;gap:0;border-radius:22px 22px 0 0;box-shadow:0 -18px 50px var(--shadow)}
+  .side .panel{border-radius:22px 22px 0 0;border-bottom:0}
+  .side:empty,.side.none{display:none}
+  .gal{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .transport{padding:10px}
+  .play{min-width:96px}
+}
+@media (max-width:520px){.gal{grid-template-columns:repeat(3,minmax(0,1fr))}.pmid{flex-basis:100%;order:5}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+
+<div class="app">
+<header class="top">
+  <div class="brand"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="none" stroke="var(--gold)" stroke-width="1.6"/><path d="M16 4.5v6.5M16 21v6.5M4.5 16h6.5M21 16h6.5M7.9 7.9l4.6 4.6M19.5 19.5l4.6 4.6M24.1 7.9l-4.6 4.6M12.5 19.5l-4.6 4.6" stroke="var(--gold)" stroke-width="1.6" stroke-linecap="round"/></svg>空靈鼓跟敲助手</div>
+  <div class="songbox"><select id="songSel" aria-label="樂曲"></select><button class="btn ghost" id="btnImport" type="button">＋ 匯入</button></div>
+  <div class="seg" id="drumSeg" role="group" aria-label="鼓款"><button type="button" data-v="d11">11 音</button><button type="button" data-v="d15">15 音</button></div>
+  <button class="ibtn sm" id="btnFull" type="button" title="全螢幕（上堂投影用）" aria-label="全螢幕"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</header>
+
+<main class="stage" id="stage">
+  <section class="left" aria-label="空靈鼓">
+    <div class="dbox" id="dbox"><svg id="drum" viewBox="0 0 600 600" role="img" aria-label="空靈鼓，亮起的音舌就是要敲的音"></svg></div>
+    <div class="transport">
+      <button class="play" id="btnPlay" type="button">▶ 播放</button>
+      <button class="ibtn" id="btnStop" type="button" aria-label="停止"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect width="14" height="14" rx="2.5" fill="currentColor"/></svg></button>
+      <div class="pmid"><input type="range" id="prog" min="0" max="1000" value="0" aria-label="播放位置"><div class="prow"><span id="progTxt">小節 1</span><span id="msg" role="status" aria-live="polite"></span></div></div>
+      <div class="seg sm" id="modeSeg" role="group" aria-label="練習模式"><button type="button" data-v="demo" title="播放鼓聲示範，同時亮起音舌">示範</button><button type="button" data-v="follow" title="只亮音舌，不出鼓聲，你自己跟住敲">跟敲</button><button type="button" data-v="wait" title="敲中亮起的音舌，先會去下一個音">等待</button></div>
+      <button class="tgl" id="btnLoop" type="button" aria-pressed="false">循環</button>
+      <button class="tgl mic" id="btnMic" type="button" aria-pressed="false" title="用咪高峰聽你敲真鼓：等待模式會自動前進，跟敲模式會計分"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>真鼓聽音</button>
+      <button class="bpmchip" id="bpmChip" type="button" title="調整速度">♩ = <b id="bpmMini">90</b></button>
+    </div>
+    <div class="looprow" id="loopRow" hidden>循環小節 <input type="number" id="loopFrom" min="1" value="1" aria-label="由小節"> 至 <input type="number" id="loopTo" min="1" value="1" aria-label="至小節"></div>
+
+    <section class="panel scorep" data-panel="score" id="pScore">
+      <div class="ph"><h2><span>樂譜</span><small class="key" id="keyTxt">1=D 4/4</small></h2>
+        <div class="seg sm" id="sizeSeg" role="group" aria-label="字體大小"><button type="button" data-v="s">小</button><button type="button" data-v="m">中</button><button type="button" data-v="l">大</button></div>
+        <button class="x" type="button" data-close="score" aria-label="收起樂譜"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+      <div class="pb" style="gap:10px"><div class="score" id="score" aria-label="簡譜"></div><div class="rep" id="rep"></div></div>
+    </section>
+  </section>
+
+  <aside class="side none" id="side" aria-label="功能面板"></aside>
+  <nav class="dock" id="dock" aria-label="功能面板">
+    <button type="button" data-p="score"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="18" cy="18" r="2.2"/></svg><span>樂譜</span></button>
+    <button type="button" data-p="tempo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l4 18H5z"/><path d="M12 17l5-9"/></svg><span>速度</span></button>
+    <button type="button" data-p="hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><circle cx="8.5" cy="10" r="1.3" fill="currentColor"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="10" r="1.3" fill="currentColor"/><path d="M12 20.5c-1.5 0-2-1.5-1-2.5s0-3 2-3h3"/></svg><span>提示色</span></button>
+    <button type="button" data-p="look"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/><circle cx="12" cy="12" r="2.5"/></svg><span>鼓面</span></button>
+    <button type="button" data-p="bg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 15l5-4 4 3 3-2 5 4"/></svg><span>背景</span></button>
+    <button type="button" data-p="sound"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg><span>音色</span></button>
+    <button type="button" data-p="play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 2.5 4M17 6h2.5a2.5 2.5 0 0 1-2.5 4M12 14v4M8.5 20.5h7"/></svg><span>挑戰</span></button>
+    <button type="button" data-p="set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>設定</span></button>
+    <span class="sep"></span>
+    <button type="button" id="btnFocus" title="收起全部面板"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg><span>專注</span></button>
+  </nav>
+</main>
+</div>
+
+<div class="modal" id="imp" hidden>
+  <div class="box" role="dialog" aria-label="匯入樂曲">
+    <div class="ph" style="padding-bottom:4px"><h2>匯入樂曲</h2><button class="x" type="button" id="impClose" aria-label="關閉"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="pb">
+      <div><p class="lab" style="margin-bottom:8px">MIDI 檔</p><p class="note" style="margin:0 0 10px">揀 .mid 檔，程式會自動揀旋律音軌，再移調到鼓上最啱的位置。</p><input type="file" id="midiFile" accept=".mid,.midi,audio/midi"></div>
+      <div class="hr"></div>
+      <div><p class="lab" style="margin-bottom:8px">簡譜文字</p>
+        <p class="hint-x" style="margin:0 0 10px"><code>1</code>–<code>7</code> 音　<code>0</code> 休止　<code>5,</code> 低八度　<code>1'</code> 高八度　<code>-</code> 延長一拍　<code>3/</code> 半拍　<code>3//</code> 四分一拍　<code>3.</code> 附點　<code>|</code> 小節線　<code>[1 3]</code> 同時敲</p>
+        <textarea id="jpText" spellcheck="false" aria-label="簡譜文字">TITLE=我的練習
+BPM=80
+TIME=4/4
+1 1 5 5 | 6 6 5 - | 4 4 3 3 | 2 2 1 - |</textarea>
+        <div class="err" id="impErr"></div><div class="row" style="margin-top:8px"><button class="btn gold" id="jpAdd" type="button">加入曲庫</button></div></div>
+    </div>
+  </div>
+</div>
